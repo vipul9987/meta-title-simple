@@ -34,3 +34,4 @@ A simple application to generate meta titles and descriptions for websites.
 ## License
 
 MIT
+# meta-title-simple
