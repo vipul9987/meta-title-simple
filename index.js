@@ -268,7 +268,7 @@ app.get('/', (req, res) => {
           </div>
         </div>
         
-        <div id="results-container" class="results hidden">
+        <div id="results-container" class="results">
           <!-- Results will be inserted here -->
         </div>
         
@@ -289,6 +289,14 @@ app.get('/', (req, res) => {
         
         // Store last request data for regeneration
         let lastRequestData = null;
+        
+        // Add a timestamp to ensure different results on regeneration
+        function addTimestamp(data) {
+          return {
+            ...data,
+            timestamp: new Date().getTime()
+          };
+        }
         
         // Generate meta content
         async function generateMeta(isRegenerate = false) {
@@ -313,12 +321,24 @@ app.get('/', (req, res) => {
           
           // Prepare request data
           let requestData;
-          if (isRegenerate && lastRequestData) {
-            requestData = lastRequestData;
+          if (isRegenerate) {
+            // Add timestamp to force new results
+            requestData = addTimestamp({
+              url,
+              keywords,
+              variantCount,
+              forceNew: true
+            });
           } else {
-            requestData = { url, keywords, variantCount };
-            lastRequestData = requestData;
+            requestData = {
+              url,
+              keywords,
+              variantCount
+            };
           }
+          
+          // Store for future regeneration
+          lastRequestData = requestData;
           
           // Show loading state
           setLoadingState(true);
@@ -347,7 +367,7 @@ app.get('/', (req, res) => {
             regenerateBtn.classList.remove('hidden');
           } catch (error) {
             showError(error.message || 'An error occurred');
-            resultsContainer.classList.add('hidden');
+            resultsContainer.innerHTML = '';
           } finally {
             setLoadingState(false);
           }
@@ -364,11 +384,9 @@ app.get('/', (req, res) => {
             resultItem.className = 'result-item';
             
             resultItem.innerHTML = \`
-              <div class="result-header">
-                <div class="result-title">Variation \${index + 1}</div>
-              </div>
+              <div class="result-title">Variation \${index + 1}</div>
               
-              <div>
+              <div style="margin-top: 10px;">
                 <div class="result-header">
                   <label>Title:</label>
                   <button class="copy-button" onclick="copyToClipboard('\${variant.title}')">Copy</button>
@@ -376,7 +394,7 @@ app.get('/', (req, res) => {
                 <div class="meta-title">\${variant.title}</div>
               </div>
               
-              <div>
+              <div style="margin-top: 15px;">
                 <div class="result-header">
                   <label>Description:</label>
                   <button class="copy-button" onclick="copyToClipboard('\${variant.description}')">Copy</button>
@@ -388,9 +406,6 @@ app.get('/', (req, res) => {
             
             resultsContainer.appendChild(resultItem);
           });
-          
-          // Show results container
-          resultsContainer.classList.remove('hidden');
         }
         
         // Copy to clipboard
@@ -446,6 +461,9 @@ app.get('/', (req, res) => {
           
           // Make copyToClipboard available globally
           window.copyToClipboard = copyToClipboard;
+          
+          // Hide results container initially
+          resultsContainer.classList.add('hidden');
         });
       </script>
     </body>
@@ -464,13 +482,17 @@ app.get('/health', (req, res) => {
 });
 
 // Generate meta content with Gemini AI
-async function generateWithGemini(url, keywords, variantCount) {
+async function generateWithGemini(url, keywords, variantCount, forceNew = false) {
   try {
+    // Add a random seed to ensure different results each time
+    const randomSeed = forceNew ? Math.random().toString(36).substring(7) : '';
+    
     // Prepare prompt for Gemini
-    const prompt = `Generate ${variantCount} SEO-optimized meta title and description variations for a website.
+    const prompt = `Generate ${variantCount} DIFFERENT and UNIQUE SEO-optimized meta title and description variations for a website. Each variation must be completely different from the others.
     
     Website URL: ${url}
     Keywords: ${keywords}
+    Random seed: ${randomSeed}
     
     For each variation, provide:
     1. A compelling meta title (50-60 characters)
@@ -478,6 +500,8 @@ async function generateWithGemini(url, keywords, variantCount) {
     
     The meta title should include the main keywords naturally and be engaging.
     The meta description should summarize the page content and include a call to action.
+    
+    IMPORTANT: Each variation must be COMPLETELY DIFFERENT from the others. Do not repeat similar patterns or structures.
     
     Format the response as a JSON array with objects containing 'title' and 'description' properties.`;
     
@@ -515,7 +539,7 @@ async function generateWithGemini(url, keywords, variantCount) {
 app.post('/generate-meta', async (req, res) => {
   try {
     console.log('Received request:', req.body);
-    const { url, keywords, variantCount = 1 } = req.body;
+    const { url, keywords, variantCount = 1, forceNew = false } = req.body;
     
     if (!url || !keywords) {
       return res.status(400).json({ error: 'URL and keywords are required' });
@@ -526,16 +550,16 @@ app.post('/generate-meta', async (req, res) => {
     // Use Gemini if available, otherwise use fallback
     if (geminiModel) {
       try {
-        metaContent = await generateWithGemini(url, keywords, variantCount);
+        metaContent = await generateWithGemini(url, keywords, variantCount, forceNew);
       } catch (aiError) {
         console.error('Error with Gemini AI, using fallback:', aiError);
         // Fallback to hardcoded response
-        metaContent = generateFallbackContent(url, keywords, variantCount);
+        metaContent = generateFallbackContent(url, keywords, variantCount, forceNew);
       }
     } else {
       // Use fallback if Gemini is not available
       console.log('Gemini AI not available, using fallback');
-      metaContent = generateFallbackContent(url, keywords, variantCount);
+      metaContent = generateFallbackContent(url, keywords, variantCount, forceNew);
     }
     
     res.json({ 
@@ -552,19 +576,41 @@ app.post('/generate-meta', async (req, res) => {
 });
 
 // Generate fallback content when Gemini is not available
-function generateFallbackContent(url, keywords, variantCount) {
+function generateFallbackContent(url, keywords, variantCount, forceNew = false) {
   const keywordsList = keywords.split(',').map(k => k.trim());
   const domain = new URL(url).hostname.replace('www.', '');
+  
+  // Add some randomness for regeneration
+  const randomSuffix = forceNew ? Math.floor(Math.random() * 1000) : '';
+  
+  const titleTemplates = [
+    (kw) => `${kw} - Top Resources & Guides | ${domain}`,
+    (kw) => `Best ${kw} Tips & Strategies | ${domain}`,
+    (kw) => `${kw}: Expert Advice & Solutions | ${domain}`,
+    (kw) => `Ultimate ${kw} Guide for Beginners | ${domain}`,
+    (kw) => `${kw} Mastery: Professional Tips | ${domain}`
+  ];
+  
+  const descriptionTemplates = [
+    (kw) => `Discover the best ${kw} resources and learn expert strategies. Visit ${domain} for comprehensive guides, tips, and professional advice.`,
+    (kw) => `Looking for ${kw} solutions? ${domain} offers expert advice, step-by-step tutorials, and professional resources to help you succeed.`,
+    (kw) => `Explore our collection of ${kw} guides and tutorials. ${domain} provides actionable tips, best practices, and industry insights.`,
+    (kw) => `Master ${kw} with our expert resources at ${domain}. Find detailed guides, practical examples, and professional strategies.`,
+    (kw) => `${domain} is your ultimate resource for ${kw}. Access expert advice, proven strategies, and comprehensive tutorials today.`
+  ];
   
   const variations = [];
   
   for (let i = 0; i < variantCount; i++) {
     const mainKeyword = keywordsList[i % keywordsList.length];
-    const secondaryKeyword = keywordsList[(i + 1) % keywordsList.length];
+    
+    // Use different templates for each variation
+    const titleIndex = (i + (forceNew ? 2 : 0)) % titleTemplates.length;
+    const descIndex = (i + (forceNew ? 3 : 0)) % descriptionTemplates.length;
     
     variations.push({
-      title: `${mainKeyword} - Top ${secondaryKeyword} Resources | ${domain}`,
-      description: `Discover the best ${mainKeyword} resources and learn about ${secondaryKeyword}. Visit ${domain} for expert insights, tips, and comprehensive guides.`
+      title: titleTemplates[titleIndex](mainKeyword) + (randomSuffix ? ` #${randomSuffix}` : ''),
+      description: descriptionTemplates[descIndex](mainKeyword)
     });
   }
   
