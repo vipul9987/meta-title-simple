@@ -145,10 +145,6 @@ app.get('/', (req, res) => {
           background-color: #e9ecef;
         }
         
-        .results {
-          margin-top: 20px;
-        }
-        
         .result-item {
           background: white;
           border-radius: 8px;
@@ -157,16 +153,17 @@ app.get('/', (req, res) => {
           margin-bottom: 15px;
         }
         
+        .result-title {
+          font-weight: 600;
+          font-size: 16px;
+          margin-bottom: 15px;
+        }
+        
         .result-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
           margin-bottom: 10px;
-        }
-        
-        .result-title {
-          font-weight: 600;
-          font-size: 16px;
         }
         
         .copy-button {
@@ -233,7 +230,7 @@ app.get('/', (req, res) => {
         }
         
         .hidden {
-          display: none;
+          display: none !important;
         }
       </style>
     </head>
@@ -268,7 +265,7 @@ app.get('/', (req, res) => {
           </div>
         </div>
         
-        <div id="results-container" class="results">
+        <div id="results-container">
           <!-- Results will be inserted here -->
         </div>
         
@@ -344,6 +341,9 @@ app.get('/', (req, res) => {
           setLoadingState(true);
           
           try {
+            // Clear previous results
+            resultsContainer.innerHTML = '';
+            
             // Make API request
             const response = await fetch('/generate-meta', {
               method: 'POST',
@@ -386,7 +386,7 @@ app.get('/', (req, res) => {
             resultItem.innerHTML = \`
               <div class="result-title">Variation \${index + 1}</div>
               
-              <div style="margin-top: 10px;">
+              <div>
                 <div class="result-header">
                   <label>Title:</label>
                   <button class="copy-button" onclick="copyToClipboard('\${variant.title}')">Copy</button>
@@ -461,9 +461,6 @@ app.get('/', (req, res) => {
           
           // Make copyToClipboard available globally
           window.copyToClipboard = copyToClipboard;
-          
-          // Hide results container initially
-          resultsContainer.classList.add('hidden');
         });
       </script>
     </body>
@@ -487,23 +484,33 @@ async function generateWithGemini(url, keywords, variantCount, forceNew = false)
     // Add a random seed to ensure different results each time
     const randomSeed = forceNew ? Math.random().toString(36).substring(7) : '';
     
-    // Prepare prompt for Gemini
-    const prompt = `Generate ${variantCount} DIFFERENT and UNIQUE SEO-optimized meta title and description variations for a website. Each variation must be completely different from the others.
+    // Extract domain for context
+    const domain = new URL(url).hostname.replace('www.', '');
     
-    Website URL: ${url}
-    Keywords: ${keywords}
-    Random seed: ${randomSeed}
-    
-    For each variation, provide:
-    1. A compelling meta title (50-60 characters)
-    2. A descriptive meta description (150-160 characters)
-    
-    The meta title should include the main keywords naturally and be engaging.
-    The meta description should summarize the page content and include a call to action.
-    
-    IMPORTANT: Each variation must be COMPLETELY DIFFERENT from the others. Do not repeat similar patterns or structures.
-    
-    Format the response as a JSON array with objects containing 'title' and 'description' properties.`;
+    // Prepare prompt for Gemini with instructions for more human-like content
+    const prompt = `Write ${variantCount} SEO-optimized meta title and description variations for a website. Make them sound natural and human-written, not AI-generated.
+
+Website URL: ${url}
+Domain: ${domain}
+Keywords: ${keywords}
+Random seed: ${randomSeed}
+
+IMPORTANT GUIDELINES:
+1. Write in a conversational, human tone - avoid robotic or formulaic language
+2. Use natural sentence structures with varied patterns
+3. Include emotional triggers and power words that resonate with humans
+4. Each variation must be completely different from the others
+5. Avoid generic phrases like "comprehensive guides" or "expert insights" unless truly relevant
+6. Meta titles should be 50-60 characters
+7. Meta descriptions should be 150-160 characters
+8. Include a subtle call-to-action in descriptions
+9. Naturally incorporate keywords without keyword stuffing
+
+For each variation, provide:
+- A compelling meta title that would make someone want to click
+- A descriptive meta description that summarizes the value proposition
+
+Format the response as a JSON array with objects containing 'title' and 'description' properties.`;
     
     // Generate content with Gemini
     const result = await geminiModel.generateContent(prompt);
@@ -583,20 +590,32 @@ function generateFallbackContent(url, keywords, variantCount, forceNew = false) 
   // Add some randomness for regeneration
   const randomSuffix = forceNew ? Math.floor(Math.random() * 1000) : '';
   
+  // More human-sounding title templates
   const titleTemplates = [
-    (kw) => `${kw} - Top Resources & Guides | ${domain}`,
-    (kw) => `Best ${kw} Tips & Strategies | ${domain}`,
-    (kw) => `${kw}: Expert Advice & Solutions | ${domain}`,
-    (kw) => `Ultimate ${kw} Guide for Beginners | ${domain}`,
-    (kw) => `${kw} Mastery: Professional Tips | ${domain}`
+    (kw) => `${kw} That Actually Work | ${domain}`,
+    (kw) => `Why ${kw} Matters for Your Business | ${domain}`,
+    (kw) => `${kw}: What No One Tells You | ${domain}`,
+    (kw) => `${kw} Simplified: No-Fluff Guide | ${domain}`,
+    (kw) => `${kw} Secrets I Wish I Knew Earlier | ${domain}`,
+    (kw) => `${kw}: Real Results, Real Stories | ${domain}`,
+    (kw) => `${kw} Myths Debunked | ${domain}`,
+    (kw) => `${kw} Strategies That Saved My Business | ${domain}`,
+    (kw) => `${kw}: The Only Guide You'll Need | ${domain}`,
+    (kw) => `${kw} Mistakes Everyone Makes | ${domain}`
   ];
   
+  // More human-sounding description templates
   const descriptionTemplates = [
-    (kw) => `Discover the best ${kw} resources and learn expert strategies. Visit ${domain} for comprehensive guides, tips, and professional advice.`,
-    (kw) => `Looking for ${kw} solutions? ${domain} offers expert advice, step-by-step tutorials, and professional resources to help you succeed.`,
-    (kw) => `Explore our collection of ${kw} guides and tutorials. ${domain} provides actionable tips, best practices, and industry insights.`,
-    (kw) => `Master ${kw} with our expert resources at ${domain}. Find detailed guides, practical examples, and professional strategies.`,
-    (kw) => `${domain} is your ultimate resource for ${kw}. Access expert advice, proven strategies, and comprehensive tutorials today.`
+    (kw) => `Tired of ${kw} advice that doesn't work? We've tested these strategies with real businesses. See what actually drives results for companies like yours.`,
+    (kw) => `We've helped hundreds of businesses improve their ${kw} strategy. Learn the practical tips our clients used to boost their results by 30% in just weeks.`,
+    (kw) => `Skip the ${kw} learning curve. Our straightforward guide shares what worked for us after years of trial and error. Save time and avoid common mistakes.`,
+    (kw) => `"I doubled my ${kw} results after reading this guide." Discover the practical strategies behind success stories from real ${domain} customers.`,
+    (kw) => `No theory, just practical ${kw} advice you can use today. We break down complex concepts into simple steps anyone can follow, regardless of experience.`,
+    (kw) => `Struggling with ${kw}? You're not alone. We've gathered insights from industry veterans to help you overcome the challenges most businesses face.`,
+    (kw) => `Want better ${kw} results without the fluff? Our no-nonsense guide cuts through the noise and focuses on what actually moves the needle.`,
+    (kw) => `Looking for honest ${kw} advice? We share what really works (and what doesn't) based on helping thousands of businesses like yours succeed.`,
+    (kw) => `Stop wasting time on ${kw} tactics that don't deliver. Our guide focuses on proven strategies that have helped real businesses see measurable results.`,
+    (kw) => `Confused about ${kw}? Our simple, jargon-free guide breaks down everything you need to know to start seeing real results for your business.`
   ];
   
   const variations = [];
@@ -605,11 +624,11 @@ function generateFallbackContent(url, keywords, variantCount, forceNew = false) 
     const mainKeyword = keywordsList[i % keywordsList.length];
     
     // Use different templates for each variation
-    const titleIndex = (i + (forceNew ? 2 : 0)) % titleTemplates.length;
-    const descIndex = (i + (forceNew ? 3 : 0)) % descriptionTemplates.length;
+    const titleIndex = (i + (forceNew ? Math.floor(Math.random() * 5) : 0)) % titleTemplates.length;
+    const descIndex = (i + (forceNew ? Math.floor(Math.random() * 5) : 0)) % descriptionTemplates.length;
     
     variations.push({
-      title: titleTemplates[titleIndex](mainKeyword) + (randomSuffix ? ` #${randomSuffix}` : ''),
+      title: titleTemplates[titleIndex](mainKeyword),
       description: descriptionTemplates[descIndex](mainKeyword)
     });
   }
