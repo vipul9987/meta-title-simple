@@ -5,6 +5,13 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Get API key from environment variables
+const API_KEY = process.env.GEMINI_API_KEY || 'default-key-for-development';
+
+// Log environment info (but not sensitive data)
+console.log(`Server starting in ${process.env.NODE_ENV || 'development'} mode`);
+console.log(`API key configured: ${API_KEY ? 'Yes' : 'No'}`);
+
 // Middleware
 app.use(express.json());
 app.use(cors());
@@ -72,7 +79,12 @@ app.get('/', (req, res) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Server is running' });
+  res.json({ 
+    status: 'ok', 
+    message: 'Server is running',
+    environment: process.env.NODE_ENV || 'development',
+    apiConfigured: !!API_KEY
+  });
 });
 
 // Meta generation endpoint
@@ -93,7 +105,13 @@ app.post('/generate-meta', (req, res) => {
       }
     ];
     
-    res.json({ metaContent, url, keywords, variantCount });
+    res.json({ 
+      metaContent, 
+      url, 
+      keywords, 
+      variantCount,
+      environment: process.env.NODE_ENV || 'development'
+    });
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Server error: ' + error.message });
