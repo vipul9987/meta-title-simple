@@ -46,6 +46,7 @@ app.get('/', (req, res) => {
         .bg-primary-700 { background-color: #4338CA; }
         .bg-primary-800 { background-color: #3730A3; }
         .bg-primary-50 { background-color: #EEF2FF; }
+        .bg-primary-100 { background-color: #E0E7FF; }
         .text-primary-600 { color: #4F46E5; }
         .text-primary-700 { color: #4338CA; }
         .text-primary-800 { color: #3730A3; }
@@ -186,10 +187,11 @@ app.get('/', (req, res) => {
         
         // Store last request data for regeneration
         let lastRequestData = null;
+        let copiedText = null;
 
         // Generate meta content
         async function generateMeta(isRegenerate = false) {
-          // Hide error and results
+          // Hide error
           errorDiv.classList.add('hidden');
           
           // Get input values
@@ -209,12 +211,13 @@ app.get('/', (req, res) => {
           }
           
           // Prepare request data
-          const requestData = isRegenerate && lastRequestData 
-            ? lastRequestData 
-            : { url, keywords, variantCount };
-          
-          // Store for regeneration
-          lastRequestData = requestData;
+          let requestData;
+          if (isRegenerate && lastRequestData) {
+            requestData = lastRequestData;
+          } else {
+            requestData = { url, keywords, variantCount };
+            lastRequestData = requestData;
+          }
           
           // Show loading state
           setLoadingState(true);
@@ -271,7 +274,7 @@ app.get('/', (req, res) => {
                       <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"></path>
                       <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"></path>
                     </svg>
-                    Copy All
+                    \${copiedText === \`all-\${index}\` ? 'Copied All' : 'Copy All'}
                   </button>
                   <span class="text-xs font-medium px-2.5 py-0.5 rounded-full bg-primary-100 text-primary-800">
                     \${variant.title.length} chars
@@ -290,7 +293,7 @@ app.get('/', (req, res) => {
                       <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"></path>
                       <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"></path>
                     </svg>
-                    Copy
+                    \${copiedText === \`title-\${index}\` ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
                 <div class="group relative">
@@ -311,7 +314,7 @@ app.get('/', (req, res) => {
                       <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"></path>
                       <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"></path>
                     </svg>
-                    Copy
+                    \${copiedText === \`desc-\${index}\` ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
                 <div class="group relative">
@@ -336,32 +339,21 @@ app.get('/', (req, res) => {
         function copyToClipboard(id, text) {
           navigator.clipboard.writeText(text)
             .then(() => {
-              // Find all copy buttons
-              const copyButtons = document.querySelectorAll('button[onclick^="copyToClipboard"]');
+              // Store the copied text ID
+              copiedText = id;
               
-              // Reset all copy buttons
-              copyButtons.forEach(button => {
-                if (button.onclick.toString().includes(id)) {
-                  // Change this button to "Copied!"
-                  const svg = button.querySelector('svg');
-                  const originalHTML = button.innerHTML;
-                  
-                  button.innerHTML = \`
-                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                    </svg>
-                    Copied!
-                  \`;
-                  
-                  // Reset after 2 seconds
-                  setTimeout(() => {
-                    button.innerHTML = originalHTML;
-                  }, 2000);
-                }
-              });
+              // Force re-render of results
+              displayResults(JSON.parse(JSON.stringify(lastResults)));
+              
+              // Reset after 2 seconds
+              setTimeout(() => {
+                copiedText = null;
+                displayResults(JSON.parse(JSON.stringify(lastResults)));
+              }, 2000);
             })
             .catch(err => {
               console.error('Failed to copy: ', err);
+              showError('Failed to copy to clipboard');
             });
         }
         
@@ -383,6 +375,7 @@ app.get('/', (req, res) => {
               </svg>
               Generating...
             \`;
+            regenerateBtn.textContent = 'Regenerating...';
           } else {
             generateBtn.disabled = false;
             regenerateBtn.disabled = false;
@@ -391,9 +384,29 @@ app.get('/', (req, res) => {
           }
         }
         
+        // Store last results for re-rendering
+        let lastResults = [];
+        
+        // Override the displayResults function to store results
+        const originalDisplayResults = displayResults;
+        displayResults = function(metaContent) {
+          lastResults = metaContent;
+          originalDisplayResults(metaContent);
+        };
+        
         // Event listeners
-        generateBtn.addEventListener('click', () => generateMeta(false));
-        regenerateBtn.addEventListener('click', () => generateMeta(true));
+        document.addEventListener('DOMContentLoaded', function() {
+          generateBtn.addEventListener('click', function() {
+            generateMeta(false);
+          });
+          
+          regenerateBtn.addEventListener('click', function() {
+            generateMeta(true);
+          });
+          
+          // Make sure the copy function is globally available
+          window.copyToClipboard = copyToClipboard;
+        });
       </script>
     </body>
     </html>
