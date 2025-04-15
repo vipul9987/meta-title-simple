@@ -478,39 +478,70 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Generate meta content with Gemini AI
+// Generate meta content with Gemini AI using the 4-step process
 async function generateWithGemini(url, keywords, variantCount, forceNew = false) {
   try {
     // Add a random seed to ensure different results each time
     const randomSeed = forceNew ? Math.random().toString(36).substring(7) : '';
     
-    // Extract domain for context
-    const domain = new URL(url).hostname.replace('www.', '');
+    // Extract domain and path for context
+    const urlObj = new URL(url);
+    const domain = urlObj.hostname.replace('www.', '');
+    const path = urlObj.pathname;
     
-    // Prepare prompt for Gemini with instructions for more human-like content
-    const prompt = `Write ${variantCount} SEO-optimized meta title and description variations for a website. Make them sound natural and human-written, not AI-generated.
+    // Parse keywords
+    const keywordsList = keywords.split(',').map(k => k.trim());
+    
+    // Create a comprehensive prompt using the 4-step process
+    const prompt = `
+# Meta Title & Description Generator
 
-Website URL: ${url}
+## 1. Understanding the Input
+You are an AI assistant designed to generate SEO-optimized meta titles and descriptions. Given the following webpage URL and target keywords, analyze the URL structure to understand its likely content, intent, and purpose.
+
+URL: ${url}
 Domain: ${domain}
-Keywords: ${keywords}
+Path: ${path}
+Keywords: ${keywordsList.join(', ')}
+Number of variations requested: ${variantCount}
 Random seed: ${randomSeed}
 
-IMPORTANT GUIDELINES:
-1. Write in a conversational, human tone - avoid robotic or formulaic language
-2. Use natural sentence structures with varied patterns
-3. Include emotional triggers and power words that resonate with humans
-4. Each variation must be completely different from the others
-5. Avoid generic phrases like "comprehensive guides" or "expert insights" unless truly relevant
-6. Meta titles should be 50-60 characters
-7. Meta descriptions should be 150-160 characters
-8. Include a subtle call-to-action in descriptions
-9. Naturally incorporate keywords without keyword stuffing
+## 2. Strategy for Meta Generation
+Based on the URL analysis, determine the best way to integrate the provided keywords while creating unique, compelling meta content. For each variation:
 
-For each variation, provide:
-- A compelling meta title that would make someone want to click
-- A descriptive meta description that summarizes the value proposition
+- Create a meta title between 50-60 characters that is clear, engaging, and unique
+- Create a meta description between 150-160 characters that is concise and informative
+- Place keywords naturally, avoiding stuffing
+- Ensure each variation is distinctly different from others
+- Make the content accurately represent what the webpage likely contains
 
-Format the response as a JSON array with objects containing 'title' and 'description' properties.`;
+## 3. Generating the Meta Title & Description
+For each variation, generate an SEO-optimized meta title and description that:
+- Uses a unique angle or perspective for each variation
+- Incorporates power words and emotional triggers
+- Includes a subtle call-to-action in the description
+- Avoids generic phrases and AI-sounding language
+- Sounds like it was written by a skilled human copywriter
+
+## 4. Validating the Output
+For each generated meta title and description:
+- Ensure proper keyword usage without overstuffing
+- Verify correct character length (Title: 50-60, Description: 150-160)
+- Check for clarity, relevance, and uniqueness
+- Confirm it has a compelling hook or call-to-action
+- Make sure it sounds natural and human-written
+
+## Example of high-quality output:
+\`\`\`json
+{
+  "web_page_url": "https://example.com/best-coffee-machines",
+  "keywords": ["best coffee machines", "buy coffee makers", "top coffee brewers"],
+  "meta_title": "Best Coffee Machines – Top Coffee Makers to Buy",
+  "meta_description": "Looking for the best coffee machines? Explore top coffee brewers and espresso makers. Buy the perfect coffee maker for your home today!"
+}
+\`\`\`
+
+Format your response as a JSON array with objects containing 'title' and 'description' properties. Each variation must be completely unique.`;
     
     // Generate content with Gemini
     const result = await geminiModel.generateContent(prompt);
@@ -585,37 +616,45 @@ app.post('/generate-meta', async (req, res) => {
 // Generate fallback content when Gemini is not available
 function generateFallbackContent(url, keywords, variantCount, forceNew = false) {
   const keywordsList = keywords.split(',').map(k => k.trim());
-  const domain = new URL(url).hostname.replace('www.', '');
+  const urlObj = new URL(url);
+  const domain = urlObj.hostname.replace('www.', '');
+  const path = urlObj.pathname;
+  
+  // Extract potential topic from URL path
+  const pathSegments = path.split('/').filter(segment => segment.length > 0);
+  const potentialTopic = pathSegments.length > 0 
+    ? pathSegments[pathSegments.length - 1].replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    : domain;
   
   // Add some randomness for regeneration
   const randomSuffix = forceNew ? Math.floor(Math.random() * 1000) : '';
   
-  // More human-sounding title templates
+  // More unique title templates with variables
   const titleTemplates = [
-    (kw) => `${kw} That Actually Work | ${domain}`,
-    (kw) => `Why ${kw} Matters for Your Business | ${domain}`,
-    (kw) => `${kw}: What No One Tells You | ${domain}`,
-    (kw) => `${kw} Simplified: No-Fluff Guide | ${domain}`,
-    (kw) => `${kw} Secrets I Wish I Knew Earlier | ${domain}`,
-    (kw) => `${kw}: Real Results, Real Stories | ${domain}`,
-    (kw) => `${kw} Myths Debunked | ${domain}`,
-    (kw) => `${kw} Strategies That Saved My Business | ${domain}`,
-    (kw) => `${kw}: The Only Guide You'll Need | ${domain}`,
-    (kw) => `${kw} Mistakes Everyone Makes | ${domain}`
+    (kw, topic, dom) => `${kw} - ${topic} Guide You Can't Miss | ${dom}`,
+    (kw, topic, dom) => `${topic}: ${kw} Secrets Revealed | ${dom}`,
+    (kw, topic, dom) => `${kw}? Here's What Actually Works | ${dom}`,
+    (kw, topic, dom) => `${topic} ${kw}: Insider Tips & Tricks | ${dom}`,
+    (kw, topic, dom) => `The Truth About ${kw} - ${topic} Insights | ${dom}`,
+    (kw, topic, dom) => `${kw} Simplified: ${topic} Without Confusion | ${dom}`,
+    (kw, topic, dom) => `${topic} ${kw} That Changed Everything | ${dom}`,
+    (kw, topic, dom) => `${kw} in ${new Date().getFullYear()}: ${topic} Edition | ${dom}`,
+    (kw, topic, dom) => `Why ${topic} Experts Swear By These ${kw} | ${dom}`,
+    (kw, topic, dom) => `${kw} Mistakes? ${topic} Solutions Inside | ${dom}`
   ];
   
-  // More human-sounding description templates
+  // More unique description templates with variables
   const descriptionTemplates = [
-    (kw) => `Tired of ${kw} advice that doesn't work? We've tested these strategies with real businesses. See what actually drives results for companies like yours.`,
-    (kw) => `We've helped hundreds of businesses improve their ${kw} strategy. Learn the practical tips our clients used to boost their results by 30% in just weeks.`,
-    (kw) => `Skip the ${kw} learning curve. Our straightforward guide shares what worked for us after years of trial and error. Save time and avoid common mistakes.`,
-    (kw) => `"I doubled my ${kw} results after reading this guide." Discover the practical strategies behind success stories from real ${domain} customers.`,
-    (kw) => `No theory, just practical ${kw} advice you can use today. We break down complex concepts into simple steps anyone can follow, regardless of experience.`,
-    (kw) => `Struggling with ${kw}? You're not alone. We've gathered insights from industry veterans to help you overcome the challenges most businesses face.`,
-    (kw) => `Want better ${kw} results without the fluff? Our no-nonsense guide cuts through the noise and focuses on what actually moves the needle.`,
-    (kw) => `Looking for honest ${kw} advice? We share what really works (and what doesn't) based on helping thousands of businesses like yours succeed.`,
-    (kw) => `Stop wasting time on ${kw} tactics that don't deliver. Our guide focuses on proven strategies that have helped real businesses see measurable results.`,
-    (kw) => `Confused about ${kw}? Our simple, jargon-free guide breaks down everything you need to know to start seeing real results for your business.`
+    (kw, topic, dom) => `Discover ${topic} ${kw} that actually deliver results. We've tested what works and what doesn't so you don't have to. ${dom} brings you real solutions.`,
+    (kw, topic, dom) => `"I finally found ${kw} that work!" See how our ${topic} approach has helped thousands. ${dom} shares the strategies others won't tell you about.`,
+    (kw, topic, dom) => `Struggling with ${topic} ${kw}? We've been there. Our team at ${dom} created this guide after years of trial and error. Real solutions inside.`,
+    (kw, topic, dom) => `${topic} ${kw} shouldn't be complicated. We've simplified the process into actionable steps anyone can follow. ${dom} - clarity without the fluff.`,
+    (kw, topic, dom) => `What if you could master ${topic} ${kw} in half the time? Our proven approach has helped thousands succeed. See how ${dom} can help you too.`,
+    (kw, topic, dom) => `The ${topic} ${kw} landscape changes fast. Stay ahead with our regularly updated guide. ${dom} brings you what's working right now.`,
+    (kw, topic, dom) => `We asked ${topic} experts about ${kw} - their answers surprised us. Discover the insider strategies they shared exclusively with ${dom}.`,
+    (kw, topic, dom) => `Stop wasting time on ${topic} ${kw} that don't deliver. Our no-nonsense guide cuts through the noise. ${dom} - straight to what works.`,
+    (kw, topic, dom) => `${topic} ${kw} made simple. We've distilled years of experience into this practical guide. Join thousands who've succeeded with ${dom}.`,
+    (kw, topic, dom) => `Looking for honest ${topic} ${kw} advice? No gimmicks, just proven strategies from our team at ${dom}. See what's possible today.`
   ];
   
   const variations = [];
@@ -623,13 +662,13 @@ function generateFallbackContent(url, keywords, variantCount, forceNew = false) 
   for (let i = 0; i < variantCount; i++) {
     const mainKeyword = keywordsList[i % keywordsList.length];
     
-    // Use different templates for each variation
+    // Use different templates for each variation with more context variables
     const titleIndex = (i + (forceNew ? Math.floor(Math.random() * 5) : 0)) % titleTemplates.length;
     const descIndex = (i + (forceNew ? Math.floor(Math.random() * 5) : 0)) % descriptionTemplates.length;
     
     variations.push({
-      title: titleTemplates[titleIndex](mainKeyword),
-      description: descriptionTemplates[descIndex](mainKeyword)
+      title: titleTemplates[titleIndex](mainKeyword, potentialTopic, domain),
+      description: descriptionTemplates[descIndex](mainKeyword, potentialTopic, domain)
     });
   }
   
