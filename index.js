@@ -40,139 +40,243 @@ app.get('/', (req, res) => {
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Meta Title Generator</title>
-      <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
       <style>
-        .bg-primary-600 { background-color: #4F46E5; }
-        .bg-primary-700 { background-color: #4338CA; }
-        .bg-primary-800 { background-color: #3730A3; }
-        .bg-primary-50 { background-color: #EEF2FF; }
-        .bg-primary-100 { background-color: #E0E7FF; }
-        .text-primary-600 { color: #4F46E5; }
-        .text-primary-700 { color: #4338CA; }
-        .text-primary-800 { color: #3730A3; }
-        .border-primary-300 { border-color: #A5B4FC; }
-        .border-primary-500 { border-color: #6366F1; }
-        .focus\\:ring-primary-500:focus { --tw-ring-color: #6366F1; }
-        .focus\\:border-primary-500:focus { border-color: #6366F1; }
-        .hover\\:bg-primary-700:hover { background-color: #4338CA; }
-        .hover\\:bg-gray-50:hover { background-color: #F9FAFB; }
-        .hover\\:text-primary-800:hover { color: #3730A3; }
-        .bg-gradient-to-r { background-image: linear-gradient(to right, var(--tw-gradient-stops)); }
-        .from-primary-600 { --tw-gradient-from: #4F46E5; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(79, 70, 229, 0)); }
-        .to-primary-800 { --tw-gradient-to: #3730A3; }
-        .bg-clip-text { -webkit-background-clip: text; background-clip: text; }
-        .text-transparent { color: transparent; }
-        .shadow-custom { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
-        .animate-spin { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        
+        body {
+          background-color: #f8f9fa;
+          color: #333;
+          line-height: 1.6;
+        }
+        
+        .container {
+          max-width: 700px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        
+        .header {
+          text-align: center;
+          margin-bottom: 20px;
+        }
+        
+        .header h1 {
+          color: #0275d8;
+          margin-bottom: 5px;
+          font-size: 28px;
+        }
+        
+        .header p {
+          color: #666;
+          font-size: 16px;
+        }
+        
+        .card {
+          background: white;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          padding: 30px;
+          margin-bottom: 20px;
+        }
+        
+        .form-group {
+          margin-bottom: 20px;
+        }
+        
+        label {
+          display: block;
+          margin-bottom: 8px;
+          font-weight: 500;
+          font-size: 14px;
+          color: #333;
+        }
+        
+        input {
+          width: 100%;
+          padding: 10px 12px;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          font-size: 14px;
+        }
+        
+        input:focus {
+          outline: none;
+          border-color: #0275d8;
+        }
+        
+        .button-group {
+          display: flex;
+          gap: 10px;
+        }
+        
+        button {
+          padding: 10px 15px;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 500;
+          transition: background-color 0.2s;
+        }
+        
+        .primary-button {
+          background-color: #0275d8;
+          color: white;
+          flex: 1;
+        }
+        
+        .primary-button:hover {
+          background-color: #0267bf;
+        }
+        
+        .secondary-button {
+          background-color: #f8f9fa;
+          color: #333;
+          border: 1px solid #ddd;
+          flex: 1;
+        }
+        
+        .secondary-button:hover {
+          background-color: #e9ecef;
+        }
+        
+        .results {
+          margin-top: 20px;
+        }
+        
+        .result-item {
+          background: white;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          padding: 20px;
+          margin-bottom: 15px;
+        }
+        
+        .result-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 10px;
+        }
+        
+        .result-title {
+          font-weight: 600;
+          font-size: 16px;
+        }
+        
+        .copy-button {
+          background: none;
+          border: none;
+          color: #0275d8;
+          cursor: pointer;
+          font-size: 13px;
+          padding: 5px 10px;
+        }
+        
+        .copy-button:hover {
+          text-decoration: underline;
+        }
+        
+        .meta-title {
+          padding: 10px;
+          background-color: #f8f9fa;
+          border-left: 3px solid #0275d8;
+          margin-bottom: 15px;
+          font-size: 14px;
+        }
+        
+        .meta-description {
+          padding: 10px;
+          background-color: #f8f9fa;
+          border-left: 3px solid #ddd;
+          font-size: 14px;
+        }
+        
+        .char-count {
+          text-align: right;
+          font-size: 12px;
+          color: #666;
+          margin-top: 5px;
+        }
+        
+        .footer {
+          text-align: center;
+          margin-top: 20px;
+          font-size: 12px;
+          color: #666;
+        }
+        
+        .loading {
+          display: inline-block;
+          width: 20px;
+          height: 20px;
+          border: 3px solid rgba(255,255,255,.3);
+          border-radius: 50%;
+          border-top-color: white;
+          animation: spin 1s ease-in-out infinite;
+          margin-right: 10px;
+        }
+        
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        
+        .error {
+          color: #dc3545;
+          margin-top: 5px;
+          font-size: 14px;
+        }
+        
+        .hidden {
+          display: none;
+        }
       </style>
     </head>
-    <body class="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div class="max-w-3xl mx-auto">
-        <!-- Header -->
-        <div class="text-center mb-10">
-          <h1 class="text-4xl font-extrabold text-gray-900 tracking-tight mb-4">
-            <span class="bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-primary-800">
-              Meta Title & Description Generator
-            </span>
-          </h1>
-          <p class="text-xl text-gray-600 max-w-2xl mx-auto">
-            Generate SEO-optimized meta titles and descriptions for your website
-          </p>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Meta Title & Description Generator</h1>
+          <p>Generate SEO-optimized meta titles and descriptions for your website</p>
         </div>
-
-        <!-- Main Card -->
-        <div class="bg-white rounded-xl shadow-custom overflow-hidden">
-          <!-- Form Section -->
-          <div class="p-6 sm:p-8">
-            <div class="space-y-6">
-              <div>
-                <label for="url" class="block text-sm font-medium text-gray-700 mb-1 text-left">
-                  Website URL
-                </label>
-                <input
-                  id="url"
-                  type="text"
-                  placeholder="https://example.com"
-                  class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition duration-150"
-                  required
-                />
-              </div>
-
-              <div>
-                <label for="keywords" class="block text-sm font-medium text-gray-700 mb-1 text-left">
-                  Keywords (comma separated)
-                </label>
-                <input
-                  id="keywords"
-                  type="text"
-                  placeholder="seo, meta tags, website optimization"
-                  class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition duration-150"
-                  required
-                />
-              </div>
-
-              <div>
-                <label for="variantCount" class="block text-sm font-medium text-gray-700 mb-1 text-left">
-                  Number of Variations
-                </label>
-                <input
-                  id="variantCount"
-                  type="number"
-                  placeholder="1-5"
-                  value="1"
-                  min="1"
-                  max="5"
-                  class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition duration-150"
-                />
-              </div>
-
-              <!-- Error message -->
-              <div id="error" class="bg-red-50 border-l-4 border-red-500 p-4 rounded hidden">
-                <div class="flex items-center">
-                  <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                    </svg>
-                  </div>
-                  <div class="ml-3">
-                    <p class="text-sm text-red-700" id="error-text"></p>
-                  </div>
-                </div>
-              </div>
-
-              <div class="flex flex-col sm:flex-row gap-4 pt-2">
-                <button
-                  id="generate-btn"
-                  class="flex-1 px-6 py-3 text-base font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 transition duration-150 flex justify-center items-center"
-                >
-                  Generate Meta Content
-                </button>
-                <button
-                  id="regenerate-btn"
-                  class="flex-1 px-6 py-3 text-base font-medium rounded-lg shadow-sm bg-white text-primary-700 border border-primary-300 hover:bg-gray-50 transition duration-150 hidden"
-                >
-                  Regenerate
-                </button>
-              </div>
-            </div>
+        
+        <div class="card">
+          <div class="form-group">
+            <label for="url">Website URL</label>
+            <input type="text" id="url" placeholder="https://example.com">
           </div>
-
-          <!-- Results Section -->
-          <div id="results-section" class="border-t border-gray-200 bg-gray-50 p-6 sm:p-8 hidden">
-            <h3 class="text-lg font-semibold text-gray-900 mb-6">Generated Meta Content:</h3>
-            <div id="results-container" class="space-y-6">
-              <!-- Results will be inserted here -->
-            </div>
+          
+          <div class="form-group">
+            <label for="keywords">Keywords (comma separated)</label>
+            <input type="text" id="keywords" placeholder="seo, meta tags">
+          </div>
+          
+          <div class="form-group">
+            <label for="variantCount">Number of Variations</label>
+            <input type="number" id="variantCount" value="1" min="1" max="5">
+          </div>
+          
+          <div id="error-message" class="error hidden"></div>
+          
+          <div class="button-group">
+            <button id="generate-btn" class="primary-button">Generate Meta Content</button>
+            <button id="regenerate-btn" class="secondary-button hidden">Regenerate</button>
           </div>
         </div>
-
-        <!-- Footer -->
-        <div class="mt-8 text-center text-gray-500 text-sm">
+        
+        <div id="results-container" class="results hidden">
+          <!-- Results will be inserted here -->
+        </div>
+        
+        <div class="footer">
           Powered by Google Gemini AI
         </div>
       </div>
-
+      
       <script>
         // DOM Elements
         const urlInput = document.getElementById('url');
@@ -180,19 +284,16 @@ app.get('/', (req, res) => {
         const variantCountInput = document.getElementById('variantCount');
         const generateBtn = document.getElementById('generate-btn');
         const regenerateBtn = document.getElementById('regenerate-btn');
-        const errorDiv = document.getElementById('error');
-        const errorText = document.getElementById('error-text');
-        const resultsSection = document.getElementById('results-section');
+        const errorMessage = document.getElementById('error-message');
         const resultsContainer = document.getElementById('results-container');
         
         // Store last request data for regeneration
         let lastRequestData = null;
-        let copiedText = null;
-
+        
         // Generate meta content
         async function generateMeta(isRegenerate = false) {
           // Hide error
-          errorDiv.classList.add('hidden');
+          errorMessage.classList.add('hidden');
           
           // Get input values
           const url = urlInput.value.trim();
@@ -246,7 +347,7 @@ app.get('/', (req, res) => {
             regenerateBtn.classList.remove('hidden');
           } catch (error) {
             showError(error.message || 'An error occurred');
-            resultsSection.classList.add('hidden');
+            resultsContainer.classList.add('hidden');
           } finally {
             setLoadingState(false);
           }
@@ -260,96 +361,44 @@ app.get('/', (req, res) => {
           // Create result items
           metaContent.forEach((variant, index) => {
             const resultItem = document.createElement('div');
-            resultItem.className = 'bg-white p-5 rounded-lg border border-gray-200 shadow-sm';
+            resultItem.className = 'result-item';
             
             resultItem.innerHTML = \`
-              <div class="flex items-center justify-between mb-3">
-                <h4 class="font-medium text-gray-900">Variation \${index + 1}</h4>
-                <div class="flex items-center space-x-2">
-                  <button
-                    onclick="copyToClipboard('all-\${index}', \`Title: \${variant.title}\\n\\nDescription: \${variant.description}\`)"
-                    class="text-xs flex items-center text-primary-600 hover:text-primary-800 transition-colors bg-primary-50 px-2 py-1 rounded-md"
-                  >
-                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"></path>
-                      <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"></path>
-                    </svg>
-                    \${copiedText === \`all-\${index}\` ? 'Copied All' : 'Copy All'}
-                  </button>
-                  <span class="text-xs font-medium px-2.5 py-0.5 rounded-full bg-primary-100 text-primary-800">
-                    \${variant.title.length} chars
-                  </span>
-                </div>
-              </div>
-              
-              <div class="mb-4">
-                <div class="flex justify-between items-center mb-1">
-                  <p class="text-sm font-medium text-gray-500">Title:</p>
-                  <button
-                    onclick="copyToClipboard('title-\${index}', '\${variant.title}')"
-                    class="text-xs flex items-center text-primary-600 hover:text-primary-800 transition-colors"
-                  >
-                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"></path>
-                      <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"></path>
-                    </svg>
-                    \${copiedText === \`title-\${index}\` ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
-                <div class="group relative">
-                  <p class="text-base text-gray-900 border-l-4 border-primary-500 pl-3 py-1 pr-2">
-                    \${variant.title}
-                  </p>
-                </div>
+              <div class="result-header">
+                <div class="result-title">Variation \${index + 1}</div>
               </div>
               
               <div>
-                <div class="flex justify-between items-center mb-1">
-                  <p class="text-sm font-medium text-gray-500">Description:</p>
-                  <button
-                    onclick="copyToClipboard('desc-\${index}', '\${variant.description}')"
-                    class="text-xs flex items-center text-primary-600 hover:text-primary-800 transition-colors"
-                  >
-                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"></path>
-                      <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"></path>
-                    </svg>
-                    \${copiedText === \`desc-\${index}\` ? 'Copied!' : 'Copy'}
-                  </button>
+                <div class="result-header">
+                  <label>Title:</label>
+                  <button class="copy-button" onclick="copyToClipboard('\${variant.title}')">Copy</button>
                 </div>
-                <div class="group relative">
-                  <p class="text-base text-gray-900 border-l-4 border-gray-300 pl-3 py-1 pr-2">
-                    \${variant.description}
-                  </p>
+                <div class="meta-title">\${variant.title}</div>
+              </div>
+              
+              <div>
+                <div class="result-header">
+                  <label>Description:</label>
+                  <button class="copy-button" onclick="copyToClipboard('\${variant.description}')">Copy</button>
                 </div>
-                <div class="mt-2 text-right">
-                  <span class="text-xs text-gray-500">\${variant.description.length} characters</span>
-                </div>
+                <div class="meta-description">\${variant.description}</div>
+                <div class="char-count">\${variant.description.length} characters</div>
               </div>
             \`;
             
             resultsContainer.appendChild(resultItem);
           });
           
-          // Show results section
-          resultsSection.classList.remove('hidden');
+          // Show results container
+          resultsContainer.classList.remove('hidden');
         }
         
         // Copy to clipboard
-        function copyToClipboard(id, text) {
+        function copyToClipboard(text) {
           navigator.clipboard.writeText(text)
             .then(() => {
-              // Store the copied text ID
-              copiedText = id;
-              
-              // Force re-render of results
-              displayResults(JSON.parse(JSON.stringify(lastResults)));
-              
-              // Reset after 2 seconds
-              setTimeout(() => {
-                copiedText = null;
-                displayResults(JSON.parse(JSON.stringify(lastResults)));
-              }, 2000);
+              // Show success message (optional)
+              console.log('Copied to clipboard');
             })
             .catch(err => {
               console.error('Failed to copy: ', err);
@@ -359,8 +408,8 @@ app.get('/', (req, res) => {
         
         // Show error message
         function showError(message) {
-          errorText.textContent = message;
-          errorDiv.classList.remove('hidden');
+          errorMessage.textContent = message;
+          errorMessage.classList.remove('hidden');
         }
         
         // Set loading state
@@ -368,43 +417,34 @@ app.get('/', (req, res) => {
           if (isLoading) {
             generateBtn.disabled = true;
             regenerateBtn.disabled = true;
-            generateBtn.innerHTML = \`
-              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Generating...
-            \`;
+            
+            const originalText = generateBtn.textContent;
+            generateBtn.innerHTML = '<span class="loading"></span> Generating...';
+            generateBtn.dataset.originalText = originalText;
+            
             regenerateBtn.textContent = 'Regenerating...';
           } else {
             generateBtn.disabled = false;
             regenerateBtn.disabled = false;
-            generateBtn.textContent = 'Generate Meta Content';
+            
+            generateBtn.textContent = generateBtn.dataset.originalText || 'Generate Meta Content';
             regenerateBtn.textContent = 'Regenerate';
           }
         }
         
-        // Store last results for re-rendering
-        let lastResults = [];
-        
-        // Override the displayResults function to store results
-        const originalDisplayResults = displayResults;
-        displayResults = function(metaContent) {
-          lastResults = metaContent;
-          originalDisplayResults(metaContent);
-        };
-        
         // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
+          // Generate button click
           generateBtn.addEventListener('click', function() {
             generateMeta(false);
           });
           
+          // Regenerate button click
           regenerateBtn.addEventListener('click', function() {
             generateMeta(true);
           });
           
-          // Make sure the copy function is globally available
+          // Make copyToClipboard available globally
           window.copyToClipboard = copyToClipboard;
         });
       </script>
