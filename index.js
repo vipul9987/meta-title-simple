@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const axios = require('axios');
+const cheerio = require('cheerio');
 
 // Create Express app
 const app = express();
@@ -478,68 +480,138 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Generate meta content with Gemini AI using the 4-step process
-async function generateWithGemini(url, keywords, variantCount, forceNew = false) {
+// Function to fetch and extract content from a URL
+async function fetchWebsiteContent(url) {
+  try {
+    // Add protocol if missing
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    
+    const response = await axios.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Cache-Control': 'max-age=0'
+      },
+      timeout: 10000, // 10 seconds timeout
+      maxRedirects: 5
+    });
+    
+    const $ = cheerio.load(response.data);
+    
+    // Extract important content
+    const title = $('title').text().trim();
+    const h1 = $('h1').first().text().trim();
+    const h2s = $('h2').map((i, el) => $(el).text().trim()).get().join(' | ');
+    const metaDescription = $('meta[name="description"]').attr('content') || '';
+    
+    // Extract main content (paragraphs)
+    const paragraphs = $('p').map((i, el) => $(el).text().trim()).get().join(' ').substring(0, 3000);
+    
+    // Extract existing meta tags
+    const existingMetaTags = {
+      title: title,
+      description: metaDescription,
+      keywords: $('meta[name="keywords"]').attr('content') || ''
+    };
+    
+    return {
+      url,
+      title,
+      h1,
+      h2s,
+      metaDescription,
+      paragraphs,
+      existingMetaTags
+    };
+  } catch (error) {
+    console.error(`Error fetching website content: ${error.message}`);
+    // Return basic info if fetch fails
+    return {
+      url,
+      error: error.message,
+      title: '',
+      h1: '',
+      h2s: '',
+      metaDescription: '',
+      paragraphs: '',
+      existingMetaTags: {}
+    };
+  }
+}
+
+// Generate meta content with Gemini AI using the 4-step process and actual website content
+async function generateWithGemini(url, keywords, variantCount, forceNew = false, websiteContent = null) {
   try {
     // Add a random seed to ensure different results each time
     const randomSeed = forceNew ? Math.random().toString(36).substring(7) : '';
     
-    // Extract domain and path for context
-    const urlObj = new URL(url);
+    // Extract domain for context
+    const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
     const domain = urlObj.hostname.replace('www.', '');
-    const path = urlObj.pathname;
     
     // Parse keywords
     const keywordsList = keywords.split(',').map(k => k.trim());
     
-    // Create a comprehensive prompt using the 4-step process
+    // Create content summary
+    let contentSummary = '';
+    if (websiteContent) {
+      contentSummary = `
+Website Title: ${websiteContent.title}
+Main Heading: ${websiteContent.h1}
+Subheadings: ${websiteContent.h2s}
+Existing Meta Description: ${websiteContent.metaDescription}
+Content Excerpt: ${websiteContent.paragraphs.substring(0, 500)}...
+`;
+    }
+    
+    // Create a comprehensive prompt using the 4-step process with actual website content
     const prompt = `
 # Meta Title & Description Generator
 
 ## 1. Understanding the Input
-You are an AI assistant designed to generate SEO-optimized meta titles and descriptions. Given the following webpage URL and target keywords, analyze the URL structure to understand its likely content, intent, and purpose.
+You are an SEO expert tasked with creating high-quality meta titles and descriptions. I've analyzed the following website:
 
 URL: ${url}
 Domain: ${domain}
-Path: ${path}
 Keywords: ${keywordsList.join(', ')}
 Number of variations requested: ${variantCount}
 Random seed: ${randomSeed}
 
-## 2. Strategy for Meta Generation
-Based on the URL analysis, determine the best way to integrate the provided keywords while creating unique, compelling meta content. For each variation:
+${contentSummary}
 
-- Create a meta title between 50-60 characters that is clear, engaging, and unique
-- Create a meta description between 150-160 characters that is concise and informative
-- Place keywords naturally, avoiding stuffing
-- Ensure each variation is distinctly different from others
-- Make the content accurately represent what the webpage likely contains
+## 2. Strategy for Meta Generation
+Based on the website content analysis, I'll create compelling meta titles and descriptions that:
+
+- Are concise and within character limits (Title: 50-60 chars, Description: 150-160 chars)
+- Incorporate the target keywords naturally
+- Reflect the actual content of the page
+- Use action-oriented language and emotional triggers
+- Are unique for each variation
+- DO NOT include the domain name or URL in the title itself
+- Sound natural and human-written
 
 ## 3. Generating the Meta Title & Description
-For each variation, generate an SEO-optimized meta title and description that:
-- Uses a unique angle or perspective for each variation
-- Incorporates power words and emotional triggers
-- Includes a subtle call-to-action in the description
-- Avoids generic phrases and AI-sounding language
-- Sounds like it was written by a skilled human copywriter
+For each variation, I'll create:
+
+- A meta title that captures attention and clearly communicates value
+- A meta description that expands on the title and includes a subtle call-to-action
+- Content that avoids generic phrases and AI-sounding language
+- Titles and descriptions that would make someone want to click
 
 ## 4. Validating the Output
-For each generated meta title and description:
-- Ensure proper keyword usage without overstuffing
-- Verify correct character length (Title: 50-60, Description: 150-160)
-- Check for clarity, relevance, and uniqueness
-- Confirm it has a compelling hook or call-to-action
-- Make sure it sounds natural and human-written
+For each generated meta title and description, I'll verify:
 
-## Example of high-quality output:
-\`\`\`json
-{
-  "web_page_url": "https://example.com/best-coffee-machines",
-  "keywords": ["best coffee machines", "buy coffee makers", "top coffee brewers"],
-  "meta_title": "Best Coffee Machines – Top Coffee Makers to Buy",
-  "meta_description": "Looking for the best coffee machines? Explore top coffee brewers and espresso makers. Buy the perfect coffee maker for your home today!"
-}
-\`\`\`
+- They're within character limits (Title: 50-60, Description: 150-160)
+- Keywords are naturally integrated
+- No domain name or URL appears in the title itself
+- The content is compelling and click-worthy
+- Each variation is distinct and unique
+- The language sounds natural and human-written
 
 Format your response as a JSON array with objects containing 'title' and 'description' properties. Each variation must be completely unique.`;
     
@@ -557,9 +629,31 @@ Format your response as a JSON array with objects containing 'title' and 'descri
       // Parse the JSON
       const parsedData = JSON.parse(jsonStr);
       
-      // Validate the structure
-      if (Array.isArray(parsedData) && parsedData.length > 0 && parsedData[0].title && parsedData[0].description) {
-        return parsedData;
+      // Validate the structure and ensure no URLs in titles
+      if (Array.isArray(parsedData) && parsedData.length > 0) {
+        // Process each item to ensure no URLs in titles
+        const processedData = parsedData.map(item => {
+          if (!item.title || !item.description) {
+            throw new Error('Invalid item format');
+          }
+          
+          // Remove any URLs or domain names from the title
+          let title = item.title;
+          title = title.replace(new RegExp(domain, 'gi'), '');
+          title = title.replace(/https?:\/\/[^\s]+/gi, '');
+          title = title.replace(/www\.[^\s]+/gi, '');
+          title = title.replace(/\s+/g, ' ').trim();
+          
+          // If title ends with a separator, clean it up
+          title = title.replace(/[\s\-|]+$/g, '');
+          
+          return {
+            title: title,
+            description: item.description
+          };
+        });
+        
+        return processedData;
       } else {
         throw new Error('Invalid response format');
       }
@@ -584,20 +678,30 @@ app.post('/generate-meta', async (req, res) => {
     }
     
     let metaContent;
+    let websiteContent = null;
+    
+    // Try to fetch website content first
+    try {
+      websiteContent = await fetchWebsiteContent(url);
+      console.log('Successfully fetched website content');
+    } catch (fetchError) {
+      console.error('Error fetching website content:', fetchError);
+      // Continue without website content
+    }
     
     // Use Gemini if available, otherwise use fallback
     if (geminiModel) {
       try {
-        metaContent = await generateWithGemini(url, keywords, variantCount, forceNew);
+        metaContent = await generateWithGemini(url, keywords, variantCount, forceNew, websiteContent);
       } catch (aiError) {
         console.error('Error with Gemini AI, using fallback:', aiError);
         // Fallback to hardcoded response
-        metaContent = generateFallbackContent(url, keywords, variantCount, forceNew);
+        metaContent = generateFallbackContent(url, keywords, variantCount, forceNew, websiteContent);
       }
     } else {
       // Use fallback if Gemini is not available
       console.log('Gemini AI not available, using fallback');
-      metaContent = generateFallbackContent(url, keywords, variantCount, forceNew);
+      metaContent = generateFallbackContent(url, keywords, variantCount, forceNew, websiteContent);
     }
     
     res.json({ 
@@ -614,47 +718,54 @@ app.post('/generate-meta', async (req, res) => {
 });
 
 // Generate fallback content when Gemini is not available
-function generateFallbackContent(url, keywords, variantCount, forceNew = false) {
+function generateFallbackContent(url, keywords, variantCount, forceNew = false, websiteContent = null) {
   const keywordsList = keywords.split(',').map(k => k.trim());
-  const urlObj = new URL(url);
+  const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
   const domain = urlObj.hostname.replace('www.', '');
-  const path = urlObj.pathname;
   
-  // Extract potential topic from URL path
-  const pathSegments = path.split('/').filter(segment => segment.length > 0);
-  const potentialTopic = pathSegments.length > 0 
-    ? pathSegments[pathSegments.length - 1].replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-    : domain;
+  // Extract potential topic from URL path or website content
+  let potentialTopic = '';
+  
+  if (websiteContent && websiteContent.h1) {
+    potentialTopic = websiteContent.h1;
+  } else if (websiteContent && websiteContent.title) {
+    potentialTopic = websiteContent.title;
+  } else {
+    const pathSegments = urlObj.pathname.split('/').filter(segment => segment.length > 0);
+    potentialTopic = pathSegments.length > 0 
+      ? pathSegments[pathSegments.length - 1].replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+      : keywordsList[0];
+  }
   
   // Add some randomness for regeneration
   const randomSuffix = forceNew ? Math.floor(Math.random() * 1000) : '';
   
-  // More unique title templates with variables
+  // More unique title templates with variables - NO URLs or domain names
   const titleTemplates = [
-    (kw, topic, dom) => `${kw} - ${topic} Guide You Can't Miss | ${dom}`,
-    (kw, topic, dom) => `${topic}: ${kw} Secrets Revealed | ${dom}`,
-    (kw, topic, dom) => `${kw}? Here's What Actually Works | ${dom}`,
-    (kw, topic, dom) => `${topic} ${kw}: Insider Tips & Tricks | ${dom}`,
-    (kw, topic, dom) => `The Truth About ${kw} - ${topic} Insights | ${dom}`,
-    (kw, topic, dom) => `${kw} Simplified: ${topic} Without Confusion | ${dom}`,
-    (kw, topic, dom) => `${topic} ${kw} That Changed Everything | ${dom}`,
-    (kw, topic, dom) => `${kw} in ${new Date().getFullYear()}: ${topic} Edition | ${dom}`,
-    (kw, topic, dom) => `Why ${topic} Experts Swear By These ${kw} | ${dom}`,
-    (kw, topic, dom) => `${kw} Mistakes? ${topic} Solutions Inside | ${dom}`
+    (kw, topic) => `${kw} - ${topic} Guide You Can't Miss`,
+    (kw, topic) => `${topic}: ${kw} Secrets Revealed`,
+    (kw, topic) => `${kw}? Here's What Actually Works`,
+    (kw, topic) => `${topic} ${kw}: Insider Tips & Tricks`,
+    (kw, topic) => `The Truth About ${kw} - ${topic} Insights`,
+    (kw, topic) => `${kw} Simplified: ${topic} Without Confusion`,
+    (kw, topic) => `${topic} ${kw} That Changed Everything`,
+    (kw, topic) => `${kw} in ${new Date().getFullYear()}: ${topic} Edition`,
+    (kw, topic) => `Why Experts Swear By These ${kw} ${topic}`,
+    (kw, topic) => `${kw} Mistakes? ${topic} Solutions Inside`
   ];
   
   // More unique description templates with variables
   const descriptionTemplates = [
-    (kw, topic, dom) => `Discover ${topic} ${kw} that actually deliver results. We've tested what works and what doesn't so you don't have to. ${dom} brings you real solutions.`,
-    (kw, topic, dom) => `"I finally found ${kw} that work!" See how our ${topic} approach has helped thousands. ${dom} shares the strategies others won't tell you about.`,
-    (kw, topic, dom) => `Struggling with ${topic} ${kw}? We've been there. Our team at ${dom} created this guide after years of trial and error. Real solutions inside.`,
-    (kw, topic, dom) => `${topic} ${kw} shouldn't be complicated. We've simplified the process into actionable steps anyone can follow. ${dom} - clarity without the fluff.`,
-    (kw, topic, dom) => `What if you could master ${topic} ${kw} in half the time? Our proven approach has helped thousands succeed. See how ${dom} can help you too.`,
-    (kw, topic, dom) => `The ${topic} ${kw} landscape changes fast. Stay ahead with our regularly updated guide. ${dom} brings you what's working right now.`,
-    (kw, topic, dom) => `We asked ${topic} experts about ${kw} - their answers surprised us. Discover the insider strategies they shared exclusively with ${dom}.`,
-    (kw, topic, dom) => `Stop wasting time on ${topic} ${kw} that don't deliver. Our no-nonsense guide cuts through the noise. ${dom} - straight to what works.`,
-    (kw, topic, dom) => `${topic} ${kw} made simple. We've distilled years of experience into this practical guide. Join thousands who've succeeded with ${dom}.`,
-    (kw, topic, dom) => `Looking for honest ${topic} ${kw} advice? No gimmicks, just proven strategies from our team at ${dom}. See what's possible today.`
+    (kw, topic, dom) => `Discover ${topic} ${kw} that actually deliver results. We've tested what works and what doesn't so you don't have to. Visit ${dom} for real solutions.`,
+    (kw, topic, dom) => `"I finally found ${kw} that work!" See how our ${topic} approach has helped thousands. Check out ${dom} for strategies others won't tell you about.`,
+    (kw, topic, dom) => `Struggling with ${topic} ${kw}? We've been there. Our team created this guide after years of trial and error. Real solutions at ${dom}.`,
+    (kw, topic, dom) => `${topic} ${kw} shouldn't be complicated. We've simplified the process into actionable steps anyone can follow. Find clarity at ${dom}.`,
+    (kw, topic, dom) => `What if you could master ${topic} ${kw} in half the time? Our proven approach has helped thousands succeed. See how we can help you too.`,
+    (kw, topic, dom) => `The ${topic} ${kw} landscape changes fast. Stay ahead with our regularly updated guide. Get what's working right now at ${dom}.`,
+    (kw, topic, dom) => `We asked ${topic} experts about ${kw} - their answers surprised us. Discover the insider strategies they shared exclusively with us.`,
+    (kw, topic, dom) => `Stop wasting time on ${topic} ${kw} that don't deliver. Our no-nonsense guide cuts through the noise. Straight to what works.`,
+    (kw, topic, dom) => `${topic} ${kw} made simple. We've distilled years of experience into this practical guide. Join thousands who've succeeded with our approach.`,
+    (kw, topic, dom) => `Looking for honest ${topic} ${kw} advice? No gimmicks, just proven strategies from our team. See what's possible today.`
   ];
   
   const variations = [];
@@ -667,7 +778,7 @@ function generateFallbackContent(url, keywords, variantCount, forceNew = false) 
     const descIndex = (i + (forceNew ? Math.floor(Math.random() * 5) : 0)) % descriptionTemplates.length;
     
     variations.push({
-      title: titleTemplates[titleIndex](mainKeyword, potentialTopic, domain),
+      title: titleTemplates[titleIndex](mainKeyword, potentialTopic),
       description: descriptionTemplates[descIndex](mainKeyword, potentialTopic, domain)
     });
   }
