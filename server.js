@@ -544,13 +544,14 @@ async function fetchWebsiteContent(url) {
   }
 }
 
-// Generate meta content with Gemini AI using the 4-step process and actual website content
+// Generate meta content with Gemini AI using enhanced prompt for professional meta content generation
 async function generateWithGemini(url, keywords, variantCount, forceNew = false, websiteContent = null) {
   try {
     // Add a random seed to ensure different results each time
     const randomSeed = forceNew ? Math.random().toString(36).substring(7) : '';
     
     // Extract domain for context
+    const path = urlObj.pathname;
     const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
     const domain = urlObj.hostname.replace('www.', '');
     
@@ -570,51 +571,145 @@ Content Excerpt: ${websiteContent.paragraphs.substring(0, 500)}...
     }
     
     // Create a comprehensive prompt using the 4-step process with actual website content
-    const prompt = `
-# Meta Title & Description Generator
+    // Create content summary
+    let contentSummary = "";
+    if (websiteContent) {
+      contentSummary = `
+## WEBSITE CONTENT ANALYSIS
+Website Title: ${websiteContent.title}
+Main Heading: ${websiteContent.h1}
+Subheadings: ${websiteContent.h2s}
+Existing Meta Description: ${websiteContent.metaDescription}
+Content Excerpt: ${websiteContent.paragraphs.substring(0, 500)}...
+`;
+    }
 
-## 1. Understanding the Input
-You are an SEO expert tasked with creating high-quality meta titles and descriptions. I've analyzed the following website:
+    // Determine audience type based on content analysis
+    let audienceType = "professionals or businesses seeking expertise";
+    let userIntent = "finding actionable information or solutions";
+    let valueProposition = "expert insights and practical solutions";
+    
+    // Try to infer more specific audience and intent from content
+    if (websiteContent) {
+      const content = websiteContent.paragraphs.toLowerCase();
+      
+      // Detect B2B audience
+      if (content.includes("business") || content.includes("company") || content.includes("enterprise") || 
+          content.includes("organization") || content.includes("professional") || content.includes("agency")) {
+        audienceType = "business professionals or organizations";
+        
+        // Further refine B2B audience
+        if (content.includes("marketing") || content.includes("seo") || content.includes("advertising")) {
+          audienceType = "marketing professionals or businesses seeking growth";
+        } else if (content.includes("software") || content.includes("developer") || content.includes("coding")) {
+          audienceType = "software developers or technical professionals";
+        } else if (content.includes("finance") || content.includes("investment") || content.includes("accounting")) {
+          audienceType = "financial professionals or businesses";
+        }
+      }
+      // Detect B2C audience
+      else if (content.includes("personal") || content.includes("individual") || content.includes("home") || 
+               content.includes("family") || content.includes("lifestyle")) {
+        audienceType = "individual consumers or homeowners";
+        
+        // Further refine B2C audience
+        if (content.includes("health") || content.includes("fitness") || content.includes("wellness")) {
+          audienceType = "health-conscious individuals seeking wellness solutions";
+        } else if (content.includes("recipe") || content.includes("cooking") || content.includes("food")) {
+          audienceType = "home cooks or food enthusiasts";
+        } else if (content.includes("travel") || content.includes("vacation") || content.includes("destination")) {
+          audienceType = "travelers or vacation planners";
+        }
+      }
+      
+      // Detect user intent
+      if (content.includes("how to") || content.includes("guide") || content.includes("tutorial") || content.includes("learn")) {
+        userIntent = "learning how to accomplish a specific task or goal";
+      } else if (content.includes("buy") || content.includes("price") || content.includes("cost") || content.includes("purchase")) {
+        userIntent = "making a purchase decision";
+      } else if (content.includes("compare") || content.includes("vs") || content.includes("versus") || content.includes("best")) {
+        userIntent = "comparing options to make an informed choice";
+      } else if (content.includes("solve") || content.includes("fix") || content.includes("problem") || content.includes("issue")) {
+        userIntent = "solving a specific problem or challenge";
+      }
+      
+      // Detect value proposition
+      if (content.includes("save time") || content.includes("quick") || content.includes("fast") || content.includes("efficient")) {
+        valueProposition = "time-saving solutions or efficiency improvements";
+      } else if (content.includes("save money") || content.includes("affordable") || content.includes("budget")) {
+        valueProposition = "cost-effective solutions or money-saving strategies";
+      } else if (content.includes("expert") || content.includes("professional") || content.includes("experienced")) {
+        valueProposition = "expert insights backed by professional experience";
+      } else if (content.includes("step by step") || content.includes("actionable") || content.includes("practical")) {
+        valueProposition = "practical, actionable guidance with clear steps";
+      }
+    }
+
+    const prompt = `
+# Professional SEO Meta Content Generator
+
+## CONTEXT ANALYSIS
+I have performed a deep analysis of the following website:
 
 URL: ${url}
 Domain: ${domain}
-Keywords: ${keywordsList.join(', ')}
-Number of variations requested: ${variantCount}
+Path: ${path}
+Primary Keywords: ${keywordsList.join(", ")}
+Number of variations needed: ${variantCount}
 Random seed: ${randomSeed}
 
 ${contentSummary}
 
-## 2. Strategy for Meta Generation
-Based on the website content analysis, I'll create compelling meta titles and descriptions that:
+## AUDIENCE & INTENT ANALYSIS
+Based on the content analysis, I have identified:
+- The primary audience appears to be ${audienceType}
+- The main user intent is likely ${userIntent}
+- The content offers unique value through ${valueProposition}
 
-- Are concise and within character limits (Title: 50-60 chars, Description: 150-160 chars)
-- Incorporate the target keywords naturally
-- Reflect the actual content of the page
-- Use action-oriented language and emotional triggers
-- Are unique for each variation
-- DO NOT include the domain name or URL in the title itself
-- Sound natural and human-written
+## META CONTENT CREATION GUIDELINES
 
-## 3. Generating the Meta Title & Description
-For each variation, I'll create:
+### For Meta Titles (50-60 characters):
+1. SPECIFICITY: Be precise about what the page offers - avoid generic claims
+2. VALUE PROPOSITION: Clearly communicate the unique benefit to the user
+3. KEYWORD USAGE: Integrate primary keywords naturally, preferably near the beginning
+4. EMOTIONAL TRIGGERS: Use power words that resonate with the target audience
+5. CLARITY: Ensure the title is immediately understandable, not clever at the expense of clarity
+6. UNIQUENESS: Each variation must take a completely different angle or approach
 
-- A meta title that captures attention and clearly communicates value
-- A meta description that expands on the title and includes a subtle call-to-action
-- Content that avoids generic phrases and AI-sounding language
-- Titles and descriptions that would make someone want to click
+### For Meta Descriptions (150-160 characters):
+1. EXPAND ON TITLE: Provide additional context that supports the title promise
+2. PROBLEM-SOLUTION: Briefly state a problem and how the page solves it
+3. CREDIBILITY: Include trust signals or evidence of expertise when relevant
+4. CALL-TO-ACTION: End with a subtle, natural call-to-action
+5. COMPLETENESS: Ensure it reads as a complete thought, not a fragment
+6. DIFFERENTIATION: Highlight what makes this content unique from competitors
 
-## 4. Validating the Output
-For each generated meta title and description, I'll verify:
+## CRITICAL REQUIREMENTS
+- ABSOLUTELY NO URLs or domain names in titles
+- NO generic phrases like "comprehensive guide" unless truly applicable
+- NO clickbait or false promises
+- MUST sound like it was written by a professional copywriter
+- MUST be something a real business would actually use
+- MUST be specific to the page content, not interchangeable with other sites
 
-- They're within character limits (Title: 50-60, Description: 150-160)
-- Keywords are naturally integrated
-- No domain name or URL appears in the title itself
-- The content is compelling and click-worthy
-- Each variation is distinct and unique
-- The language sounds natural and human-written
+## OUTPUT FORMAT
+Provide a JSON array with objects containing title and description properties.
+Each variation must be completely unique in approach and angle.
 
-Format your response as a JSON array with objects containing 'title' and 'description' properties. Each variation must be completely unique.`;
-    
+## EXAMPLES OF EXCELLENT META CONTENT
+
+### For a Coffee Machine Review Site:
+Title: "Top 5 Espresso Machines Under $500 - Barista-Tested Picks"
+Description: "Our coffee experts tested 23 espresso makers for crema quality, temperature consistency, and durability. See which affordable models outperformed $1,000+ machines."
+
+### For a Digital Marketing Agency:
+Title: "Data-Driven SEO Strategies That Increased Client Traffic 327%"
+Description: "Discover the exact SEO framework we used to triple organic traffic for 17 B2B companies. Case studies, implementation steps, and ROI calculations included."
+
+### For a Recipe Blog:
+Title: "15-Minute Mediterranean Meals - Weeknight Dinner Solved"
+Description: "Quick, authentic Mediterranean recipes using pantry staples. Each meal packs 25g+ protein, costs under $3/serving, and requires just one pan. Meal prep tips included."
+`;
     // Generate content with Gemini
     const result = await geminiModel.generateContent(prompt);
     const response = await result.response;
