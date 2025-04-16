@@ -572,9 +572,6 @@ Content Excerpt: ${websiteContent.paragraphs.substring(0, 500)}...
     
     // Create a comprehensive prompt using the 4-step process with actual website content
     // Create content summary
-    let contentSummary = "";
-    if (websiteContent) {
-      contentSummary = `
 ## WEBSITE CONTENT ANALYSIS
 Website Title: ${websiteContent.title}
 Main Heading: ${websiteContent.h1}
